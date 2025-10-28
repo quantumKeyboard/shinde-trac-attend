@@ -3,7 +3,7 @@ import { FileText, Download, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { employeeService, attendanceService, workingDaysService, salaryService } from '../services/api';
-import { exportMonthlyAttendance, exportSalaryReport, exportEmployeeReport } from '../utils/exportExcel';
+import { exportMonthlyAttendance, exportSalaryReport, exportEmployeeReport, exportAllEmployeesReport } from '../utils/exportExcel';
 
 export default function Reports() {
   const [exporting, setExporting] = useState(false);
@@ -118,12 +118,12 @@ export default function Reports() {
         employeeData.push({
           ...employee,
           attendance,
-          working_days: workingDaysData?.working_days || 0
+          working_days: workingDaysData?.total_working_days || 0
         });
       }
       
       // Export to Excel
-      await exportEmployeeReport(employeeData, month, year);
+      await exportAllEmployeesReport(employeeData, month, year);
       
       toast.dismiss();
       toast.success('Employee report exported successfully!');

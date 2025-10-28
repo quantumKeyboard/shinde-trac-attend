@@ -78,7 +78,7 @@ export default function EmployeeDetail() {
         year,
         empData.department
       );
-      setWorkingDays(workingDaysData?.working_days || 0);
+      setWorkingDays(workingDaysData?.total_working_days || 0);
 
     } catch (error) {
       console.error('Error loading employee data:', error);

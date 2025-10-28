@@ -156,9 +156,9 @@ export const exportSalaryReport = async (salaryData, month, year) => {
   // Add data
   salaryData.forEach(record => {
     const row = worksheet.addRow([
-      record.employees?.employee_id || 'N/A',
-      record.employees?.full_name || 'N/A',
-      record.employees?.department || 'N/A',
+      record.employee_id || 'N/A',
+      record.full_name || 'N/A',
+      record.department || 'N/A',
       record.monthly_salary,
       record.total_working_days,
       record.days_present,
@@ -270,5 +270,70 @@ export const exportEmployeeReport = async (employee, attendanceData, salaryData)
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = `Employee_${employee.employee_id}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+  return await saveFile(buffer, filename);
+};
+
+// =====================================================
+// ALL EMPLOYEES DETAILED REPORT
+// =====================================================
+export const exportAllEmployeesReport = async (employeesData, month, year) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('All Employees Report');
+
+  // Title
+  worksheet.mergeCells('A1:H1');
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = `All Employees Report - ${format(new Date(year, month - 1), 'MMMM yyyy')}`;
+  titleCell.font = { size: 16, bold: true };
+  titleCell.alignment = { horizontal: 'center' };
+
+  // Headers
+  const headerRow = worksheet.addRow([
+    'Employee ID',
+    'Name',
+    'Department',
+    'Working Days',
+    'Days Present',
+    'Paid Leave',
+    'Unpaid Absence',
+    'Attendance Rate %'
+  ]);
+
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF2563EB' }
+  };
+  headerRow.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+
+  // Add data for each employee
+  employeesData.forEach(emp => {
+    const attendance = emp.attendance || [];
+    const present = attendance.filter(a => a.is_present).length;
+    const absentPaid = attendance.filter(a => !a.is_present && a.is_paid_leave).length;
+    const absentUnpaid = attendance.filter(a => !a.is_present && !a.is_paid_leave).length;
+    const workingDays = emp.working_days || 0;
+    const attendanceRate = workingDays > 0 ? ((present / workingDays) * 100).toFixed(1) : 0;
+
+    worksheet.addRow([
+      emp.employee_id || 'N/A',
+      emp.full_name || 'N/A',
+      emp.department || 'N/A',
+      workingDays,
+      present,
+      absentPaid,
+      absentUnpaid,
+      `${attendanceRate}%`
+    ]);
+  });
+
+  // Auto-fit columns
+  worksheet.columns.forEach(column => {
+    column.width = 20;
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const filename = `All_Employees_${format(new Date(year, month - 1), 'MMM_yyyy')}.xlsx`;
   return await saveFile(buffer, filename);
 };
