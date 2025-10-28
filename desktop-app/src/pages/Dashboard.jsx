@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { 
   Users, 
   UserCheck, 
@@ -7,87 +6,15 @@ import {
   TrendingUp, 
   Calendar,
   AlertCircle,
-  DollarSign
+  DollarSign,
+  RefreshCw
 } from 'lucide-react';
-import { employeeService, attendanceService } from '../services/api';
-import toast from 'react-hot-toast';
+import { useDashboardStats } from '../hooks/useDashboard';
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    totalEmployees: 0,
-    activeEmployees: 0,
-    todayPresent: 0,
-    todayAbsent: 0,
-    monthlyAbsentees: [],
-  });
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading, isError, refetch, isFetching } = useDashboardStats();
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Get all employees
-      const allEmployees = await employeeService.getAllEmployees();
-      const activeEmployees = allEmployees.filter(e => e.status === 'Active');
-
-      // Get today's attendance
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const todayAttendance = await attendanceService.getAttendanceByDate(today);
-      
-      const todayPresent = todayAttendance.filter(a => a.is_present).length;
-      const todayAbsent = todayAttendance.filter(a => !a.is_present).length;
-
-      // Get monthly absentees
-      const now = new Date();
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
-      const monthlyAbsences = await attendanceService.getAbsenteesSummary(month, year);
-
-      // Group by employee
-      const absenteeMap = {};
-      monthlyAbsences.forEach(record => {
-        const empId = record.employee_id;
-        if (!absenteeMap[empId]) {
-          absenteeMap[empId] = {
-            employee: record.employees,
-            totalAbsences: 0,
-            paidLeaves: 0,
-            unpaidLeaves: 0,
-            absences: []
-          };
-        }
-        absenteeMap[empId].totalAbsences++;
-        if (record.is_paid_leave) {
-          absenteeMap[empId].paidLeaves++;
-        } else {
-          absenteeMap[empId].unpaidLeaves++;
-        }
-        absenteeMap[empId].absences.push(record);
-      });
-
-      const absenteesList = Object.values(absenteeMap).sort(
-        (a, b) => b.totalAbsences - a.totalAbsences
-      );
-
-      setStats({
-        totalEmployees: allEmployees.length,
-        activeEmployees: activeEmployees.length,
-        todayPresent,
-        todayAbsent,
-        monthlyAbsentees: absenteesList.slice(0, 10), // Top 10
-      });
-    } catch (error) {
-      toast.error('Failed to load dashboard data');
-      console.error('Load error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -98,14 +25,39 @@ export default function Dashboard() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-600">Failed to load dashboard data</p>
+          <button onClick={() => refetch()} className="btn-primary mt-4">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const currentMonth = format(new Date(), 'MMMM yyyy');
 
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Overview of attendance and employee statistics</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Overview of attendance and employee statistics</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="btn-secondary flex items-center gap-2"
+          title="Refresh dashboard data"
+        >
+          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+          {isFetching ? 'Refreshing...' : 'Refresh'}
+        </button>
       </div>
 
       {/* Stats Cards */}

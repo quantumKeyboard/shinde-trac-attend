@@ -20,7 +20,9 @@ function createWindow() {
 
   // Load the app
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5174');
+    // Try different ports in case 5174 is in use
+    const devURL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5174';
+    mainWindow.loadURL(devURL);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));

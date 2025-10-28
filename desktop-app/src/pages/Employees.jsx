@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, UserX, Phone, Calendar as CalendarIcon, User } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Search, Edit2, UserX, Phone, Calendar as CalendarIcon, User, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { employeeService, auditService } from '../services/api';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee } from '../hooks/useEmployees';
 import { useAuthStore } from '../store';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -10,8 +10,11 @@ const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping', 'Management'];
 
 export default function Employees() {
   const navigate = useNavigate();
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: employees = [], isLoading, refetch, isFetching } = useEmployees();
+  const createEmployee = useCreateEmployee();
+  const updateEmployee = useUpdateEmployee();
+  const deactivateEmployee = useDeactivateEmployee();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('All');
   const [filterStatus, setFilterStatus] = useState('Active');
@@ -27,23 +30,6 @@ export default function Employees() {
     date_of_joining: format(new Date(), 'yyyy-MM-dd'),
   });
 
-  useEffect(() => {
-    loadEmployees();
-  }, []);
-
-  const loadEmployees = async () => {
-    setLoading(true);
-    try {
-      const data = await employeeService.getAllEmployees();
-      setEmployees(data);
-    } catch (error) {
-      toast.error('Failed to load employees');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -54,23 +40,32 @@ export default function Employees() {
       };
 
       if (editingEmployee) {
-        await employeeService.updateEmployee(editingEmployee.id, employeeData);
-        await auditService.logAction('EDIT_EMPLOYEE', 'employees', editingEmployee.id, editingEmployee, employeeData);
-        toast.success('Employee updated successfully');
+        await updateEmployee.mutateAsync({
+          id: editingEmployee.id,
+          updates: employeeData,
+          oldData: editingEmployee
+        });
       } else {
-        const newEmployee = await employeeService.createEmployee(employeeData);
-        await auditService.logAction('CREATE_EMPLOYEE', 'employees', newEmployee.id, null, newEmployee);
-        toast.success(`Employee added successfully! ID: ${newEmployee.employee_id}`);
+        await createEmployee.mutateAsync(employeeData);
       }
 
       setShowModal(false);
       setEditingEmployee(null);
       resetForm();
-      loadEmployees();
     } catch (error) {
-      toast.error('Failed to save employee');
+      // Error handling is done in the hooks
       console.error(error);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      full_name: '',
+      department: 'Salesman',
+      monthly_salary: '',
+      contact_number: '',
+      date_of_joining: format(new Date(), 'yyyy-MM-dd'),
+    });
   };
 
   const handleEdit = (employee) => {
@@ -88,25 +83,11 @@ export default function Employees() {
   const handleDeactivate = async (employee) => {
     if (confirm(`Are you sure you want to deactivate ${employee.full_name}?`)) {
       try {
-        await employeeService.deactivateEmployee(employee.id);
-        await auditService.logAction('DEACTIVATE_EMPLOYEE', 'employees', employee.id, employee, { status: 'Inactive' });
-        toast.success('Employee deactivated');
-        loadEmployees();
+        await deactivateEmployee.mutateAsync({ id: employee.id });
       } catch (error) {
-        toast.error('Failed to deactivate employee');
         console.error(error);
       }
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      full_name: '',
-      department: 'Salesman',
-      monthly_salary: '',
-      contact_number: '',
-      date_of_joining: format(new Date(), 'yyyy-MM-dd'),
-    });
   };
 
   const filteredEmployees = employees.filter(emp => {
@@ -123,19 +104,32 @@ export default function Employees() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Employees</h1>
-          <p className="text-gray-600 mt-1">{employees.length} total employees</p>
+          <p className="text-gray-600 mt-1">
+            {isLoading ? 'Loading...' : `${employees.length} total employees`}
+          </p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setEditingEmployee(null);
-            setShowModal(true);
-          }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Add Employee
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="btn-secondary flex items-center gap-2"
+            title="Refresh employee list"
+          >
+            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+            {isFetching ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            onClick={() => {
+              resetForm();
+              setEditingEmployee(null);
+              setShowModal(true);
+            }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Add Employee
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
