@@ -5,7 +5,7 @@ import { Check, X, Save } from 'lucide-react';
 import { employeeService, attendanceService, auditService } from '../services/api';
 import { useAuthStore } from '../store';
 
-const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping'];
+const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping', 'Management'];
 
 export default function Attendance() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));

@@ -5,7 +5,7 @@ import { Calendar as CalendarIcon, Save } from 'lucide-react';
 import { workingDaysService, auditService } from '../services/api';
 import { useAuthStore } from '../store';
 
-const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping'];
+const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping', 'Management'];
 
 export default function WorkingDays() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));

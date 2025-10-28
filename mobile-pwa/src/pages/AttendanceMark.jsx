@@ -5,7 +5,7 @@ import { Check, X, Calendar as CalendarIcon, Save, Users as UsersIcon } from 'lu
 import { employeeService, attendanceService, auditService } from '../services/api';
 import { useAuthStore } from '../store';
 
-const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping'];
+const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping', 'Management'];
 
 export default function AttendanceMark() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));

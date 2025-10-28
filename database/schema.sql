@@ -11,7 +11,7 @@ CREATE TABLE employees (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     employee_id VARCHAR(20) UNIQUE NOT NULL, -- Auto-generated: EMP001, EMP002, etc.
     full_name VARCHAR(100) NOT NULL,
-    department VARCHAR(50) NOT NULL CHECK (department IN ('Salesman', 'Mechanic', 'Housekeeping')),
+    department VARCHAR(50) NOT NULL CHECK (department IN ('Salesman', 'Mechanic', 'Housekeeping', 'Management')),
     monthly_salary DECIMAL(10, 2) NOT NULL CHECK (monthly_salary > 0),
     contact_number VARCHAR(15),
     date_of_joining DATE NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE working_days (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
     year INTEGER NOT NULL CHECK (year >= 2024),
-    department VARCHAR(50) NOT NULL CHECK (department IN ('Salesman', 'Mechanic', 'Housekeeping')),
+    department VARCHAR(50) NOT NULL CHECK (department IN ('Salesman', 'Mechanic', 'Housekeeping', 'Management')),
     total_working_days INTEGER NOT NULL CHECK (total_working_days BETWEEN 1 AND 31),
     working_dates DATE[] NOT NULL, -- Array of actual working dates
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

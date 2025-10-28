@@ -76,6 +76,7 @@ export default function EmployeeList() {
           <option value="Salesman">Salesman</option>
           <option value="Mechanic">Mechanic</option>
           <option value="Housekeeping">Housekeeping</option>
+          <option value="Management">Management</option>
         </select>
       </div>
 

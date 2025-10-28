@@ -6,7 +6,7 @@ import { useAuthStore } from '../store';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
-const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping'];
+const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping', 'Management'];
 
 export default function Employees() {
   const navigate = useNavigate();
