@@ -27,8 +27,8 @@ export default function Reports() {
       // Get attendance for the month
       const attendance = await attendanceService.getAttendanceByDateRange(startDate, endDate);
       
-      // Export to Excel
-      await exportMonthlyAttendance(employees, attendance, month, year);
+      // Export to Excel (attendanceData, employees, month, year)
+      await exportMonthlyAttendance(attendance, employees, month, year);
       
       toast.dismiss();
       toast.success('Attendance report exported successfully!');

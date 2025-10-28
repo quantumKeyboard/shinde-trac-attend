@@ -70,9 +70,13 @@ export default function EmployeeDetail() {
       setAttendance(attendanceData);
 
       // Load working days
-      const workingDaysData = await workingDaysService.getByDepartmentAndMonth(
-        empData.department,
-        format(parseISO(startDate), 'yyyy-MM')
+      const date = parseISO(startDate);
+      const month = parseInt(format(date, 'M'));
+      const year = parseInt(format(date, 'yyyy'));
+      const workingDaysData = await workingDaysService.getWorkingDays(
+        month,
+        year,
+        empData.department
       );
       setWorkingDays(workingDaysData?.working_days || 0);
 
@@ -106,9 +110,9 @@ export default function EmployeeDetail() {
       }
 
       const totalDays = attendance.length;
-      const presentDays = attendance.filter(a => a.status === 'Present').length;
-      const absentDays = attendance.filter(a => a.status === 'Absent').length;
-      const paidLeaveDays = attendance.filter(a => a.status === 'Absent' && a.is_paid_leave).length;
+      const presentDays = attendance.filter(a => a.is_present).length;
+      const absentDays = attendance.filter(a => !a.is_present).length;
+      const paidLeaveDays = attendance.filter(a => !a.is_present && a.is_paid_leave).length;
       const unpaidLeaveDays = absentDays - paidLeaveDays;
 
       const perDaySalary = employee.monthly_salary / workingDays;
@@ -140,8 +144,27 @@ export default function EmployeeDetail() {
         }
       });
 
-      await navigator.clipboard.writeText(message);
-      toast.success('Report copied! Ready to share');
+      // Try native Web Share API first (works on mobile)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            text: message
+          });
+          toast.success('Report shared successfully!');
+          return;
+        } catch (err) {
+          // User cancelled or share failed, continue to other methods
+          if (err.name !== 'AbortError') {
+            console.error('Share failed:', err);
+          }
+        }
+      }
+
+      // Fallback: Open WhatsApp directly
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+      window.open(whatsappUrl, '_blank');
+      toast.success('Opening WhatsApp...');
 
     } catch (error) {
       console.error('Error generating report:', error);
@@ -157,7 +180,7 @@ export default function EmployeeDetail() {
   };
 
   const getAttendanceForDate = (date) => {
-    return attendance.find(a => isSameDay(parseISO(a.date), date));
+    return attendance.find(a => isSameDay(parseISO(a.attendance_date), date));
   };
 
   if (loading) {
@@ -182,8 +205,8 @@ export default function EmployeeDetail() {
     );
   }
 
-  const absentDates = attendance.filter(a => a.status === 'Absent');
-  const presentDays = attendance.filter(a => a.status === 'Present').length;
+  const absentDates = attendance.filter(a => !a.is_present);
+  const presentDays = attendance.filter(a => a.is_present).length;
   const paidLeaves = absentDates.filter(a => a.is_paid_leave).length;
   const unpaidLeaves = absentDates.length - paidLeaves;
   
@@ -374,8 +397,8 @@ export default function EmployeeDetail() {
             
             {getCalendarDays().map((day, idx) => {
               const attendanceRecord = getAttendanceForDate(day);
-              const isAbsent = attendanceRecord?.status === 'Absent';
-              const isPresent = attendanceRecord?.status === 'Present';
+              const isAbsent = attendanceRecord && !attendanceRecord.is_present;
+              const isPresent = attendanceRecord && attendanceRecord.is_present;
               
               return (
                 <div
@@ -410,7 +433,7 @@ export default function EmployeeDetail() {
                 <div key={record.id} className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-sm">
-                      {format(parseISO(record.date), 'dd MMM yyyy')}
+                      {format(parseISO(record.attendance_date), 'dd MMM yyyy')}
                     </span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                       record.is_paid_leave ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
@@ -418,8 +441,8 @@ export default function EmployeeDetail() {
                       {record.is_paid_leave ? 'Paid' : 'Unpaid'}
                     </span>
                   </div>
-                  {record.reason && (
-                    <p className="text-xs text-gray-600">{record.reason}</p>
+                  {record.absence_reason && (
+                    <p className="text-xs text-gray-600">{record.absence_reason}</p>
                   )}
                 </div>
               ))}

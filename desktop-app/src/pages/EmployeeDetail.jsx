@@ -31,6 +31,11 @@ export default function EmployeeDetail() {
       
       // Load employee details
       const empData = await employeeService.getById(id);
+      if (!empData) {
+        toast.error('Employee not found');
+        navigate('/employees');
+        return;
+      }
       setEmployee(empData);
 
       // Load attendance for date range
@@ -39,7 +44,7 @@ export default function EmployeeDetail() {
         startDate,
         endDate
       );
-      setAttendance(attendanceData);
+      setAttendance(attendanceData || []);
 
       // Load working days for the employee's department
       const date = parseISO(startDate);
@@ -54,7 +59,7 @@ export default function EmployeeDetail() {
 
     } catch (error) {
       console.error('Error loading employee data:', error);
-      toast.error('Failed to load employee details');
+      toast.error(`Failed to load employee details: ${error.message}`);
     } finally {
       setLoading(false);
     }

@@ -95,9 +95,9 @@ export const exportMonthlyAttendance = async (attendanceData, employees, month, 
     const totalAbsences = stats.absentUnpaid + stats.absentPaid;
 
     worksheet.addRow([
-      emp.employee_id,
-      emp.full_name,
-      emp.department,
+      emp.employee_id || 'N/A',
+      emp.full_name || 'Unknown',
+      emp.department || 'N/A',
       stats.present,
       stats.absentUnpaid,
       stats.absentPaid,
