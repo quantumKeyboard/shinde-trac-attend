@@ -109,9 +109,10 @@ export default function Reports() {
         );
         
         // Get working days
-        const workingDaysData = await workingDaysService.getByDepartmentAndMonth(
-          employee.department,
-          `${year}-${month}`
+        const workingDaysData = await workingDaysService.getWorkingDays(
+          parseInt(month),
+          parseInt(year),
+          employee.department
         );
         
         employeeData.push({

@@ -42,9 +42,13 @@ export default function EmployeeDetail() {
       setAttendance(attendanceData);
 
       // Load working days for the employee's department
-      const workingDaysData = await workingDaysService.getByDepartmentAndMonth(
-        empData.department,
-        format(parseISO(startDate), 'yyyy-MM')
+      const date = parseISO(startDate);
+      const month = parseInt(format(date, 'M'));
+      const year = parseInt(format(date, 'yyyy'));
+      const workingDaysData = await workingDaysService.getWorkingDays(
+        month,
+        year,
+        empData.department
       );
       setWorkingDays(workingDaysData?.working_days || 0);
 

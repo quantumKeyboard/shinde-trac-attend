@@ -108,11 +108,13 @@ export default function Attendance() {
 
       await attendanceService.markBulkAttendance(attendanceRecords);
       
-      await auditService.logAction({
-        action: 'mark_attendance',
-        details: `Marked attendance for ${attendanceRecords.length} employees on ${selectedDate}`,
-        user_id: user?.id
-      });
+      await auditService.logAction(
+        'mark_attendance',
+        'attendance',
+        null,
+        null,
+        { count: attendanceRecords.length, date: selectedDate }
+      );
 
       toast.success('Attendance saved successfully!');
     } catch (error) {
