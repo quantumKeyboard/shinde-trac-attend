@@ -101,9 +101,9 @@ export default function Attendance() {
       const attendanceRecords = Object.values(attendance).map(record => ({
         employee_id: record.employee_id,
         attendance_date: selectedDate,
-        status: record.is_present ? 'Present' : 'Absent',
+        is_present: record.is_present,
         is_paid_leave: record.is_paid_leave,
-        reason: record.absence_reason || null
+        absence_reason: record.absence_reason || null
       }));
 
       await attendanceService.markBulkAttendance(attendanceRecords);
