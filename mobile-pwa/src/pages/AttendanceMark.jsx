@@ -146,9 +146,14 @@ export default function AttendanceMark() {
 
     setSaving(true);
     try {
+      // Check if selected date is Sunday
+      const date = new Date(selectedDate);
+      const isSunday = date.getDay() === 0;
+      
       // Prepare attendance records
       const attendanceRecords = Object.values(attendance).map(record => ({
         ...record,
+        is_sunday_work: isSunday && record.is_present, // Auto-mark Sunday work
         marked_by: user?.id,
         updated_by: user?.id
       }));
@@ -209,6 +214,11 @@ export default function AttendanceMark() {
           max={format(new Date(), 'yyyy-MM-dd')}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
         />
+        {new Date(selectedDate).getDay() === 0 && (
+          <p className="text-sm text-orange-600 mt-2 font-medium flex items-center gap-1">
+            🌅 Sunday - Compensation/Overtime Day
+          </p>
+        )}
       </div>
 
       {/* Department Filter */}

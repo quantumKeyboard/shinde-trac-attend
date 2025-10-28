@@ -98,11 +98,16 @@ export default function Attendance() {
 
     setSaving(true);
     try {
+      // Check if selected date is Sunday
+      const date = new Date(selectedDate);
+      const isSunday = date.getDay() === 0;
+      
       const attendanceRecords = Object.values(attendance).map(record => ({
         employee_id: record.employee_id,
         attendance_date: selectedDate,
         is_present: record.is_present,
         is_paid_leave: record.is_paid_leave,
+        is_sunday_work: isSunday && record.is_present, // Auto-mark Sunday work
         absence_reason: record.absence_reason || null
       }));
 
@@ -174,6 +179,11 @@ export default function Attendance() {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="input-field"
             />
+            {new Date(selectedDate).getDay() === 0 && (
+              <p className="text-sm text-orange-600 mt-1 font-medium">
+                🌅 Sunday - Compensation/Overtime Day
+              </p>
+            )}
           </div>
           
           <div>

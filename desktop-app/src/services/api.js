@@ -301,19 +301,34 @@ export const salaryService = {
 
     // Calculate attendance statistics
     const totalWorkingDays = workingDaysData.total_working_days;
-    const daysPresent = attendanceRecords.filter(a => a.is_present).length;
+    const daysPresent = attendanceRecords.filter(a => a.is_present && !a.is_sunday_work).length;
     const daysAbsentUnpaid = attendanceRecords.filter(
       a => !a.is_present && !a.is_paid_leave
     ).length;
     const daysAbsentPaid = attendanceRecords.filter(
       a => !a.is_present && a.is_paid_leave
     ).length;
+    
+    // Calculate Sunday work (compensation and overtime)
+    const sundayWorkDays = attendanceRecords.filter(
+      a => a.is_present && a.is_sunday_work
+    ).length;
+    
+    // Sunday Compensation Logic:
+    // 1. First, use Sunday days to compensate unpaid absences (1 Sunday = 1 Absence)
+    // 2. Remaining Sunday days count as overtime (paid at regular rate)
+    const sundayCompensationDays = Math.min(sundayWorkDays, daysAbsentUnpaid);
+    const sundayOvertimeDays = sundayWorkDays - sundayCompensationDays;
+    
+    // Adjust actual unpaid absences after Sunday compensation
+    const actualUnpaidAbsences = daysAbsentUnpaid - sundayCompensationDays;
 
     // Calculate salary
     const monthlySalary = parseFloat(employee.monthly_salary);
     const perDayRate = monthlySalary / totalWorkingDays;
-    const deductionAmount = perDayRate * daysAbsentUnpaid;
-    const payableSalary = monthlySalary - deductionAmount;
+    const deductionAmount = perDayRate * actualUnpaidAbsences; // Deduct only after compensation
+    const overtimeAmount = perDayRate * sundayOvertimeDays; // Pay for overtime Sundays
+    const payableSalary = monthlySalary - deductionAmount + overtimeAmount;
 
     return {
       employee_id: employeeId,
@@ -322,10 +337,13 @@ export const salaryService = {
       monthly_salary: monthlySalary,
       total_working_days: totalWorkingDays,
       days_present: daysPresent,
-      days_absent_unpaid: daysAbsentUnpaid,
+      days_absent_unpaid: daysAbsentUnpaid, // Original unpaid count
       days_absent_paid: daysAbsentPaid,
+      sunday_compensation_days: sundayCompensationDays,
+      sunday_overtime_days: sundayOvertimeDays,
       per_day_rate: perDayRate,
       deduction_amount: deductionAmount,
+      overtime_amount: overtimeAmount,
       payable_salary: payableSalary
     };
   },

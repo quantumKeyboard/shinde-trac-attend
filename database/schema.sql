@@ -57,6 +57,7 @@ CREATE TABLE attendance (
     attendance_date DATE NOT NULL,
     is_present BOOLEAN NOT NULL DEFAULT true,
     is_paid_leave BOOLEAN DEFAULT false, -- true if absent but paid
+    is_sunday_work BOOLEAN DEFAULT false, -- true if working on Sunday (compensation/overtime)
     absence_reason TEXT,
     marked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     marked_by UUID REFERENCES auth.users(id),
@@ -69,6 +70,7 @@ CREATE TABLE attendance (
 CREATE INDEX idx_attendance_employee ON attendance(employee_id);
 CREATE INDEX idx_attendance_date ON attendance(attendance_date);
 CREATE INDEX idx_attendance_is_present ON attendance(is_present);
+CREATE INDEX idx_attendance_is_sunday_work ON attendance(is_sunday_work);
 CREATE INDEX idx_attendance_month_year ON attendance(EXTRACT(MONTH FROM attendance_date), EXTRACT(YEAR FROM attendance_date));
 
 -- =====================================================
@@ -84,8 +86,11 @@ CREATE TABLE salary_calculations (
     days_present INTEGER NOT NULL,
     days_absent_unpaid INTEGER NOT NULL,
     days_absent_paid INTEGER NOT NULL,
+    sunday_compensation_days INTEGER DEFAULT 0, -- Sundays worked to compensate absences
+    sunday_overtime_days INTEGER DEFAULT 0, -- Sundays worked as overtime (no absences)
     per_day_rate DECIMAL(10, 2) NOT NULL,
     deduction_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    overtime_amount DECIMAL(10, 2) DEFAULT 0, -- Payment for Sunday overtime
     payable_salary DECIMAL(10, 2) NOT NULL,
     calculation_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     calculated_by UUID REFERENCES auth.users(id),
