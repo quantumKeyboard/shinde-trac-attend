@@ -87,9 +87,9 @@ export default function EmployeeDetail() {
       }
 
       const totalDays = attendance.length;
-      const presentDays = attendance.filter(a => a.status === 'Present').length;
-      const absentDays = attendance.filter(a => a.status === 'Absent').length;
-      const paidLeaveDays = attendance.filter(a => a.status === 'Absent' && a.is_paid_leave).length;
+      const presentDays = attendance.filter(a => a.is_present).length;
+      const absentDays = attendance.filter(a => !a.is_present).length;
+      const paidLeaveDays = attendance.filter(a => !a.is_present && a.is_paid_leave).length;
       const unpaidLeaveDays = absentDays - paidLeaveDays;
 
       // Calculate salary
@@ -143,7 +143,7 @@ export default function EmployeeDetail() {
   };
 
   const getAttendanceForDate = (date) => {
-    return attendance.find(a => isSameDay(parseISO(a.date), date));
+    return attendance.find(a => isSameDay(parseISO(a.attendance_date), date));
   };
 
   if (loading) {
@@ -168,8 +168,8 @@ export default function EmployeeDetail() {
     );
   }
 
-  const absentDates = attendance.filter(a => a.status === 'Absent');
-  const presentDays = attendance.filter(a => a.status === 'Present').length;
+  const absentDates = attendance.filter(a => !a.is_present);
+  const presentDays = attendance.filter(a => a.is_present).length;
   const paidLeaves = absentDates.filter(a => a.is_paid_leave).length;
   const unpaidLeaves = absentDates.length - paidLeaves;
   
@@ -382,8 +382,8 @@ export default function EmployeeDetail() {
           {/* Calendar days */}
           {getCalendarDays().map((day, idx) => {
             const attendanceRecord = getAttendanceForDate(day);
-            const isAbsent = attendanceRecord?.status === 'Absent';
-            const isPresent = attendanceRecord?.status === 'Present';
+            const isAbsent = attendanceRecord && !attendanceRecord.is_present;
+            const isPresent = attendanceRecord && attendanceRecord.is_present;
             
             return (
               <div
@@ -428,10 +428,10 @@ export default function EmployeeDetail() {
                   <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border-2 border-gray-200">
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">
-                        {format(parseISO(record.date), 'd')}
+                        {format(parseISO(record.attendance_date), 'd')}
                       </div>
                       <div className="text-xs text-gray-600">
-                        {format(parseISO(record.date), 'MMM')}
+                        {format(parseISO(record.attendance_date), 'MMM')}
                       </div>
                     </div>
                   </div>
@@ -439,7 +439,7 @@ export default function EmployeeDetail() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-gray-900">
-                      {format(parseISO(record.date), 'EEEE, dd MMMM yyyy')}
+                      {format(parseISO(record.attendance_date), 'EEEE, dd MMMM yyyy')}
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                       record.is_paid_leave ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
@@ -447,8 +447,8 @@ export default function EmployeeDetail() {
                       {record.is_paid_leave ? 'Paid Leave' : 'Unpaid'}
                     </span>
                   </div>
-                  {record.reason && (
-                    <p className="text-sm text-gray-600">{record.reason}</p>
+                  {record.absence_reason && (
+                    <p className="text-sm text-gray-600">{record.absence_reason}</p>
                   )}
                 </div>
               </div>
