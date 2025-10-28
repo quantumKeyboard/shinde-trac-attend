@@ -50,6 +50,17 @@ export const employeeService = {
     return data;
   },
 
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
   async createEmployee(employeeData) {
     const { data, error } = await supabase
       .from('employees')
@@ -142,6 +153,22 @@ export const attendanceService = {
     const { data, error } = await query;
     if (error) throw error;
     return data;
+  },
+
+  async getByEmployeeAndDateRange(employeeId, startDate, endDate) {
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .gte('attendance_date', startDate)
+      .lte('attendance_date', endDate)
+      .order('attendance_date', { ascending: true });
+
+    if (error) throw error;
+    return data.map(record => ({
+      ...record,
+      date: record.attendance_date
+    }));
   },
 
   async getMonthlyAttendance(month, year) {

@@ -8,6 +8,7 @@ import { useAuthStore } from './store';
 import Login from './pages/Login';
 import AttendanceMark from './pages/AttendanceMark';
 import EmployeeList from './pages/EmployeeList';
+import EmployeeDetail from './pages/EmployeeDetail';
 import WorkingDays from './pages/WorkingDays';
 
 // Components
@@ -64,6 +65,7 @@ function App() {
         >
           <Route index element={<AttendanceMark />} />
           <Route path="employees" element={<EmployeeList />} />
+          <Route path="employees/:id" element={<EmployeeDetail />} />
           <Route path="working-days" element={<WorkingDays />} />
         </Route>
 

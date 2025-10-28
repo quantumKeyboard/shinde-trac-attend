@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, UserX } from 'lucide-react';
+import { Search, Plus, Edit2, UserX, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { employeeService } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function EmployeeList() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,7 +90,8 @@ export default function EmployeeList() {
           filteredEmployees.map(employee => (
             <div
               key={employee.id}
-              className="bg-white rounded-lg shadow-md p-4"
+              className="bg-white rounded-lg shadow-md p-4 cursor-pointer active:bg-gray-50"
+              onClick={() => navigate(`/employees/${employee.id}`)}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -110,19 +113,22 @@ export default function EmployeeList() {
                     Joined: {new Date(employee.date_of_joining).toLocaleDateString('en-IN')}
                   </p>
                 </div>
-                <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                  Active
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                    Active
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
               </div>
             </div>
           ))
         )}
       </div>
 
-      {/* Note about desktop app */}
+      {/* Tap to view details */}
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> To add, edit, or manage employees, please use the Desktop Application.
+          <strong>💡 Tip:</strong> Tap on any employee to view their detailed attendance history and generate reports.
         </p>
       </div>
     </div>

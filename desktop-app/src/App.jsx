@@ -8,6 +8,7 @@ import { useAuthStore } from './store';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
+import EmployeeDetail from './pages/EmployeeDetail';
 import Attendance from './pages/Attendance';
 import WorkingDays from './pages/WorkingDays';
 import SalaryCalculation from './pages/SalaryCalculation';
@@ -77,6 +78,7 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="employees" element={<Employees />} />
+          <Route path="employees/:id" element={<EmployeeDetail />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="working-days" element={<WorkingDays />} />
           <Route path="salary" element={<SalaryCalculation />} />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, UserX, Phone, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Search, Edit2, UserX, Phone, Calendar as CalendarIcon, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { employeeService, auditService } from '../services/api';
 import { useAuthStore } from '../store';
 import toast from 'react-hot-toast';
@@ -8,6 +9,7 @@ import { format } from 'date-fns';
 const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping'];
 
 export default function Employees() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -192,8 +194,15 @@ export default function Employees() {
           {filteredEmployees.map(employee => (
             <div key={employee.id} className="card p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">{employee.full_name}</h3>
+                <div 
+                  className="flex-1 cursor-pointer" 
+                  onClick={() => navigate(`/employees/${employee.id}`)}
+                  title="Click to view details"
+                >
+                  <h3 className="text-lg font-bold text-gray-900 hover:text-blue-600 flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    {employee.full_name}
+                  </h3>
                   <p className="text-sm text-gray-600">{employee.employee_id}</p>
                 </div>
                 <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
