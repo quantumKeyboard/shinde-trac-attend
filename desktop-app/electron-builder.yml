@@ -1,0 +1,38 @@
+appId: com.shindetractors.attendance
+productName: Shinde Tractors Attendance
+copyright: Copyright © 2025 Shinde Tractors
+
+directories:
+  output: dist-electron
+  buildResources: build
+
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+  license: LICENSE.txt
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+# Disable all code signing to avoid Windows permission issues
+forceCodeSigning: false

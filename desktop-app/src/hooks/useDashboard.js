@@ -32,29 +32,36 @@ export function useDashboardStats() {
       
       const monthlyAttendance = await attendanceService.getAttendanceByDateRange(monthStart, monthEnd);
       
-      // Calculate monthly absentees
+      // Calculate monthly absentees with paid/unpaid split
       const absenteeMap = {};
       monthlyAttendance.forEach(record => {
-        if (!record.is_present && !record.is_paid_leave) {
+        if (!record.is_present) {
           if (!absenteeMap[record.employee_id]) {
             const employee = activeEmployees.find(e => e.id === record.employee_id);
             if (employee) {
               absenteeMap[record.employee_id] = {
                 employee,
-                absentDays: 0,
+                totalAbsences: 0,
+                paidLeaves: 0,
+                unpaidLeaves: 0,
                 dates: []
               };
             }
           }
           if (absenteeMap[record.employee_id]) {
-            absenteeMap[record.employee_id].absentDays++;
+            absenteeMap[record.employee_id].totalAbsences++;
+            if (record.is_paid_leave) {
+              absenteeMap[record.employee_id].paidLeaves++;
+            } else {
+              absenteeMap[record.employee_id].unpaidLeaves++;
+            }
             absenteeMap[record.employee_id].dates.push(record.attendance_date);
           }
         }
       });
 
       const monthlyAbsentees = Object.values(absenteeMap)
-        .sort((a, b) => b.absentDays - a.absentDays)
+        .sort((a, b) => b.totalAbsences - a.totalAbsences)
         .slice(0, 10); // Top 10 absentees
 
       return {

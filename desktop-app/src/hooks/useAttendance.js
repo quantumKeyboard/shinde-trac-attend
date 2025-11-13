@@ -24,7 +24,14 @@ export function useAttendanceByDate(date) {
 export function useAttendanceByEmployee(employeeId, startDate, endDate) {
   return useQuery({
     queryKey: attendanceKeys.byEmployee(employeeId, { startDate, endDate }),
-    queryFn: () => attendanceService.getAttendanceByEmployee(employeeId, startDate, endDate),
+    queryFn: async () => {
+      const data = await attendanceService.getEmployeeAttendance(employeeId, startDate, endDate);
+      // Map to include date field for compatibility
+      return (data || []).map(record => ({
+        ...record,
+        date: record.attendance_date
+      }));
+    },
     enabled: !!employeeId && !!startDate && !!endDate,
     select: (data) => data || [],
   });

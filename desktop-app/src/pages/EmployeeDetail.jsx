@@ -1,68 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, ArrowLeft, Download, MessageSquare, DollarSign, AlertCircle } from 'lucide-react';
+import { Calendar, ArrowLeft, Download, MessageSquare, DollarSign, AlertCircle, RefreshCw, Sun } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO } from 'date-fns';
 import toast from 'react-hot-toast';
-import { employeeService, attendanceService, workingDaysService, salaryService } from '../services/api';
+import { useEmployee } from '../hooks/useEmployees';
+import { useAttendanceByEmployee } from '../hooks/useAttendance';
+import { useWorkingDays } from '../hooks/useWorkingDays';
 import { generateWhatsAppMessage } from '../utils/exportSummary';
+import { salaryService } from '../services/api';
 
 export default function EmployeeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  const [employee, setEmployee] = useState(null);
-  const [attendance, setAttendance] = useState([]);
-  const [workingDays, setWorkingDays] = useState(0);
-  const [loading, setLoading] = useState(true);
   
   // Date range state
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [useCustomRange, setUseCustomRange] = useState(false);
+  const [salaryCalculation, setSalaryCalculation] = useState(null);
+  const [calculatingsalary, setCalculatingsalary] = useState(false);
 
+  // Use React Query hooks for caching
+  const { data: employee, isLoading: employeeLoading, refetch: refetchEmployee, isFetching: employeeFetching } = useEmployee(id);
+  const { data: attendance = [], isLoading: attendanceLoading, refetch: refetchAttendance, isFetching: attendanceFetching } = useAttendanceByEmployee(id, startDate, endDate);
+  
+  // Get working days for the employee's department
+  const date = parseISO(startDate);
+  const month = parseInt(format(date, 'M'));
+  const year = parseInt(format(date, 'yyyy'));
+  const { data: workingDaysData, refetch: refetchWorkingDays, isFetching: workingDaysFetching } = useWorkingDays(
+    month,
+    year,
+    employee?.department
+  );
+
+  const loading = employeeLoading || attendanceLoading;
+  const isFetching = employeeFetching || attendanceFetching || workingDaysFetching;
+  const workingDays = workingDaysData?.total_working_days || 0;
+
+  // Navigate away if employee not found
   useEffect(() => {
-    loadEmployeeData();
-  }, [id, startDate, endDate]);
-
-  const loadEmployeeData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load employee details
-      const empData = await employeeService.getById(id);
-      if (!empData) {
-        toast.error('Employee not found');
-        navigate('/employees');
-        return;
-      }
-      setEmployee(empData);
-
-      // Load attendance for date range
-      const attendanceData = await attendanceService.getByEmployeeAndDateRange(
-        id,
-        startDate,
-        endDate
-      );
-      setAttendance(attendanceData || []);
-
-      // Load working days for the employee's department
-      const date = parseISO(startDate);
-      const month = parseInt(format(date, 'M'));
-      const year = parseInt(format(date, 'yyyy'));
-      const workingDaysData = await workingDaysService.getWorkingDays(
-        month,
-        year,
-        empData.department
-      );
-      setWorkingDays(workingDaysData?.total_working_days || 0);
-
-    } catch (error) {
-      console.error('Error loading employee data:', error);
-      toast.error(`Failed to load employee details: ${error.message}`);
-    } finally {
-      setLoading(false);
+    if (!employeeLoading && !employee) {
+      toast.error('Employee not found');
+      navigate('/employees');
     }
+  }, [employee, employeeLoading, navigate]);
+
+  // Calculate salary whenever date/employee/attendance changes
+  useEffect(() => {
+    if (!employee || !workingDaysData) {
+      setSalaryCalculation(null);
+      return;
+    }
+
+    const calculateSalary = async () => {
+      try {
+        setCalculatingsalary(true);
+        const calc = await salaryService.calculateMonthlySalary(employee.id, month, year);
+        setSalaryCalculation(calc);
+      } catch (error) {
+        console.error('Error calculating salary:', error);
+        setSalaryCalculation(null);
+      } finally {
+        setCalculatingsalary(false);
+      }
+    };
+
+    calculateSalary();
+  }, [employee?.id, month, year, workingDaysData?.id]);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    await Promise.all([refetchEmployee(), refetchAttendance(), refetchWorkingDays()]);
+    toast.success('Data refreshed');
   };
 
   const handleMonthChange = (increment) => {
@@ -76,52 +87,30 @@ export default function EmployeeDetail() {
 
   const handleCustomRangeApply = () => {
     setUseCustomRange(true);
-    loadEmployeeData();
+    // Date changes will trigger automatic refetch through React Query
   };
 
   const generateAbsenteeReport = async () => {
     try {
-      if (!employee || !workingDays) {
-        toast.error('Missing required data for report generation');
+      if (!employee) {
+        toast.error('Missing employee data');
         return;
       }
 
-      const totalDays = attendance.length;
-      const presentDays = attendance.filter(a => a.is_present).length;
-      const absentDays = attendance.filter(a => !a.is_present).length;
-      const paidLeaveDays = attendance.filter(a => !a.is_present && a.is_paid_leave).length;
-      const unpaidLeaveDays = absentDays - paidLeaveDays;
+      // Use salary calculation if available, otherwise use final calculation
+      const salaryData = salaryCalculation || finalCalculation;
 
-      // Calculate salary
-      const perDaySalary = employee.monthly_salary / workingDays;
-      const deduction = unpaidLeaveDays * perDaySalary;
-      const finalSalary = employee.monthly_salary - deduction;
-
-      // Generate WhatsApp message
-      const message = generateWhatsAppMessage({
-        employee: {
+      // Generate WhatsApp message with full salary calculation details
+      const message = generateWhatsAppMessage(
+        {
           full_name: employee.full_name,
           employee_id: employee.employee_id,
           department: employee.department,
           monthly_salary: employee.monthly_salary
         },
-        attendance: {
-          total_working_days: workingDays,
-          days_present: presentDays,
-          days_absent: absentDays,
-          paid_leaves: paidLeaveDays,
-          unpaid_leaves: unpaidLeaveDays
-        },
-        salary: {
-          per_day_salary: perDaySalary,
-          deduction: deduction,
-          final_salary: finalSalary
-        },
-        period: {
-          start: startDate,
-          end: endDate
-        }
-      });
+        salaryData,
+        attendance
+      );
 
       // Copy to clipboard
       await navigator.clipboard.writeText(message);
@@ -133,13 +122,19 @@ export default function EmployeeDetail() {
     }
   };
 
-  // Get calendar days for the selected month/range
+  // Get calendar days for the selected month/range with proper alignment
   const getCalendarDays = () => {
     if (!employee) return [];
     
     const start = parseISO(startDate);
     const end = parseISO(endDate);
-    return eachDayOfInterval({ start, end });
+    const days = eachDayOfInterval({ start, end });
+    
+    // Add empty cells at the start to align first day with correct day of week
+    const firstDayOfWeek = days[0]?.getDay() || 0;
+    const emptyDays = Array(firstDayOfWeek).fill(null);
+    
+    return [...emptyDays, ...days];
   };
 
   const getAttendanceForDate = (date) => {
@@ -169,13 +164,42 @@ export default function EmployeeDetail() {
   }
 
   const absentDates = attendance.filter(a => !a.is_present);
-  const presentDays = attendance.filter(a => a.is_present).length;
-  const paidLeaves = absentDates.filter(a => a.is_paid_leave).length;
-  const unpaidLeaves = absentDates.length - paidLeaves;
   
-  const perDaySalary = workingDays > 0 ? employee.monthly_salary / workingDays : 0;
-  const deduction = unpaidLeaves * perDaySalary;
-  const finalSalary = employee.monthly_salary - deduction;
+  // Use proper calculation if available, otherwise fallback
+  const finalCalculation = salaryCalculation || (() => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const perDaySalaryCalc = employee?.monthly_salary ? employee.monthly_salary / daysInMonth : 0;
+    const absentCount = absentDates.filter(a => !a.is_paid_leave).length;
+    const deduction = absentCount * perDaySalaryCalc;
+    const finalSalary = employee?.monthly_salary ? employee.monthly_salary - deduction : 0;
+    return {
+      monthly_salary: employee?.monthly_salary || 0,
+      per_day_rate: perDaySalaryCalc,
+      deduction_amount: deduction,
+      payable_salary: finalSalary,
+      overtime_amount: 0,
+      days_present: attendance.filter(a => a.is_present).length,
+      days_absent_paid: absentDates.filter(a => a.is_paid_leave).length,
+      days_absent_unpaid: absentCount,
+      sundays_in_month: 0,
+      sundays_worked: 0,
+      sundays_absent: 0,
+      sunday_compensation_days: 0,
+      sunday_overtime_days: 0
+    };
+  })();
+
+  const presentDays = finalCalculation.days_present;
+  const paidLeaves = finalCalculation.days_absent_paid;
+  const unpaidLeaves = finalCalculation.days_absent_unpaid;
+  
+  // Get Sunday information from salary calculation
+  const totalSundays = finalCalculation.sundays_in_month;
+  const sundaysWorked = finalCalculation.sundays_worked;
+  const sundaysAbsent = finalCalculation.sundays_absent;
+  const sundayCompensation = finalCalculation.sunday_compensation_days;
+  const sundayOvertime = finalCalculation.sunday_overtime_days;
+  const perDaySalary = finalCalculation.per_day_rate;
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -197,6 +221,15 @@ export default function EmployeeDetail() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={isFetching}
+              className="btn-secondary flex items-center gap-2"
+              title="Refresh data from database"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+              {isFetching ? 'Refreshing...' : 'Refresh'}
+            </button>
             <button
               onClick={generateAbsenteeReport}
               className="btn-primary flex items-center gap-2"
@@ -334,34 +367,97 @@ export default function EmployeeDetail() {
         </div>
       </div>
 
+      {/* Sunday Information (if available) */}
+      {totalSundays > 0 && (
+        <div className="card p-6 mb-6 bg-orange-50 border-2 border-orange-200">
+          <h3 className="font-bold text-orange-900 mb-4 flex items-center gap-2">
+            <Sun className="w-5 h-5" />
+            Sunday Work Summary
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-white p-3 rounded-lg">
+              <div className="text-xs text-orange-600 mb-1">Total Sundays</div>
+              <div className="text-lg font-bold text-orange-900">{totalSundays}</div>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <div className="text-xs text-green-600 mb-1">Sundays Worked</div>
+              <div className="text-lg font-bold text-green-900">{sundaysWorked}</div>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <div className="text-xs text-gray-600 mb-1">Sundays Absent</div>
+              <div className="text-lg font-bold text-gray-900">{sundaysAbsent}</div>
+              <div className="text-xs text-gray-500 mt-1">(Paid holiday)</div>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <div className="text-xs text-orange-600 mb-1">Compensation Days</div>
+              <div className="text-lg font-bold text-orange-900">{sundayCompensation}</div>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <div className="text-xs text-purple-600 mb-1">Overtime Days</div>
+              <div className="text-lg font-bold text-purple-900">{sundayOvertime}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Salary Calculation */}
       <div className="card p-6 mb-6">
         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
           <DollarSign className="w-5 h-5" />
           Salary Calculation
         </h3>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-gray-600">Monthly Salary</span>
-            <span className="font-semibold">₹{employee.monthly_salary.toLocaleString()}</span>
+        {calculatingsalary ? (
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="text-gray-600">Calculating salary...</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-gray-600">Per Day Salary ({employee.monthly_salary} ÷ {workingDays})</span>
-            <span className="font-semibold">₹{perDaySalary.toFixed(2)}</span>
+        ) : salaryCalculation ? (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b">
+              <span className="text-gray-600">Monthly Salary</span>
+              <span className="font-semibold">₹{salaryCalculation.monthly_salary.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b">
+              <span className="text-gray-600">Per Day Rate (Salary ÷ Days in Month)</span>
+              <span className="font-semibold">₹{salaryCalculation.per_day_rate.toFixed(2)}</span>
+            </div>
+            {salaryCalculation.sundays_in_month > 0 && (
+              <div className="bg-orange-50 p-3 rounded-lg my-2 border border-orange-200">
+                <p className="text-sm text-orange-900 mb-2">
+                  <strong>Sunday Compensation:</strong> {salaryCalculation.sunday_compensation_days} Sundays worked compensate {salaryCalculation.sunday_compensation_days} unpaid absences
+                </p>
+              </div>
+            )}
+            <div className="flex justify-between items-center py-2 border-b">
+              <span className="text-gray-600">Unpaid Absences (Before Compensation)</span>
+              <span className="font-semibold">{salaryCalculation.days_absent_unpaid} days</span>
+            </div>
+            {salaryCalculation.sunday_compensation_days > 0 && (
+              <div className="flex justify-between items-center py-2 border-b text-orange-600">
+                <span>After Sunday Compensation</span>
+                <span className="font-semibold">{salaryCalculation.days_absent_unpaid - salaryCalculation.sunday_compensation_days} days</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center py-2 border-b text-red-600">
+              <span>Deduction (After compensation)</span>
+              <span className="font-semibold">- ₹{salaryCalculation.deduction_amount.toFixed(2)}</span>
+            </div>
+            {salaryCalculation.sunday_overtime_days > 0 && (
+              <div className="flex justify-between items-center py-2 border-b text-purple-600">
+                <span>Sunday Overtime ({salaryCalculation.sunday_overtime_days} days)</span>
+                <span className="font-semibold">+ ₹{salaryCalculation.overtime_amount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center py-3 bg-green-50 px-4 rounded-lg">
+              <span className="text-lg font-bold text-green-900">Final Salary Payable</span>
+              <span className="text-2xl font-bold text-green-900">₹{salaryCalculation.payable_salary.toFixed(2)}</span>
+            </div>
           </div>
-          <div className="flex justify-between items-center py-2 border-b">
-            <span className="text-gray-600">Unpaid Leaves</span>
-            <span className="font-semibold">{unpaidLeaves} days</span>
+        ) : (
+          <div className="text-gray-600">
+            <p>Select a month to view salary calculation</p>
           </div>
-          <div className="flex justify-between items-center py-2 border-b text-red-600">
-            <span>Deduction ({unpaidLeaves} × ₹{perDaySalary.toFixed(2)})</span>
-            <span className="font-semibold">- ₹{deduction.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between items-center py-3 bg-green-50 px-4 rounded-lg">
-            <span className="text-lg font-bold text-green-900">Final Salary Payable</span>
-            <span className="text-2xl font-bold text-green-900">₹{finalSalary.toFixed(2)}</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Attendance Calendar */}
@@ -381,6 +477,11 @@ export default function EmployeeDetail() {
           
           {/* Calendar days */}
           {getCalendarDays().map((day, idx) => {
+            // Render empty cell for alignment
+            if (!day) {
+              return <div key={`empty-${idx}`} className="min-h-[80px]"></div>;
+            }
+            
             const attendanceRecord = getAttendanceForDate(day);
             const isAbsent = attendanceRecord && !attendanceRecord.is_present;
             const isPresent = attendanceRecord && attendanceRecord.is_present;

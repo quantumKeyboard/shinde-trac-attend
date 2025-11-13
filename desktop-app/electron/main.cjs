@@ -14,16 +14,33 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
       enableRemoteModule: true
-    },
-    icon: path.join(__dirname, '../build/icon.ico')
+    }
+    // icon: path.join(__dirname, '../build/icon.ico') // Add icon here if needed
   });
 
   // Load the app
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5174');
+    // Open DevTools only in development
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // Production mode - load built files
+    // When packaged with electron-builder, __dirname points to resources/app.asar/electron
+    // We need to go up one level to access the dist folder
+    const indexPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app', 'dist', 'index.html')
+      : path.join(__dirname, '../dist/index.html');
+    
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('Failed to load index.html:', err);
+      console.error('Tried path:', indexPath);
+      console.error('__dirname:', __dirname);
+      console.error('resourcesPath:', process.resourcesPath);
+      console.error('isPackaged:', app.isPackaged);
+    });
+    
+    // Temporarily open DevTools to see console errors
+    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.on('closed', () => {

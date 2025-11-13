@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, Users, Calendar, LogOut } from 'lucide-react';
+import { Home, Users, Calendar, DollarSign, LogOut } from 'lucide-react';
 import { signOut } from '../services/supabase';
 import { useAuthStore } from '../store';
 import toast from 'react-hot-toast';
@@ -78,6 +78,18 @@ export default function Layout() {
           >
             <Calendar className="w-6 h-6" />
             <span className="text-xs mt-1">Working Days</span>
+          </NavLink>
+
+          <NavLink
+            to="/salaries"
+            className={({ isActive }) =>
+              `flex flex-col items-center py-3 px-4 touch-target transition-colors ${
+                isActive ? 'text-primary-600' : 'text-gray-600'
+              }`
+            }
+          >
+            <DollarSign className="w-6 h-6" />
+            <span className="text-xs mt-1">Salaries</span>
           </NavLink>
         </div>
       </nav>

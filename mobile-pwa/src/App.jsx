@@ -10,6 +10,7 @@ import AttendanceMark from './pages/AttendanceMark';
 import EmployeeList from './pages/EmployeeList';
 import EmployeeDetail from './pages/EmployeeDetail';
 import WorkingDays from './pages/WorkingDays';
+import SalaryCalculation from './pages/SalaryCalculation';
 
 // Components
 import Layout from './components/Layout';
@@ -50,7 +51,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster position="top-center" />
       <Routes>
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
@@ -67,6 +68,7 @@ function App() {
           <Route path="employees" element={<EmployeeList />} />
           <Route path="employees/:id" element={<EmployeeDetail />} />
           <Route path="working-days" element={<WorkingDays />} />
+          <Route path="salaries" element={<SalaryCalculation />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

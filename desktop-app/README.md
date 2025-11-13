@@ -1,6 +1,191 @@
 # Desktop Application - Shinde Tractors Attendance
 
-Electron-based desktop application for comprehensive attendance management, reporting, and analytics.
+# Shinde Tractors Desktop App
+
+Electron desktop application for Shinde Tractors Employee Attendance System.
+
+## 🚀 Quick Start
+
+### For Developers
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Configure Supabase**
+   - Copy `.env.example` to `.env`
+   - Add your Supabase credentials:
+     ```
+     VITE_SUPABASE_URL=your_supabase_url
+     VITE_SUPABASE_ANON_KEY=your_supabase_key
+     ```
+
+3. **Run in development mode**
+   ```bash
+   npm run dev
+   ```
+
+### For Distribution
+
+To create an installer for end users:
+
+#### Option 1: Using PowerShell Script (Easiest)
+```powershell
+.\build-installer.ps1
+```
+
+#### Option 2: Manual Build
+```bash
+npm run build
+npm run build:win
+```
+
+The installer will be created in `dist-electron/` folder.
+
+## 📦 What Was Fixed
+
+### 1. Developer Tools Issue ✅
+**Problem**: DevTools were opening automatically when the app launched, even in production.
+
+**Solution**: Modified `electron/main.cjs` to only open DevTools in development mode:
+```javascript
+if (process.env.NODE_ENV === 'development') {
+  mainWindow.loadURL('http://localhost:5174');
+  mainWindow.webContents.openDevTools();
+} else {
+  mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  // DevTools will NOT open in production
+}
+```
+
+### 2. Installer Configuration ✅
+**Added**: Proper electron-builder configuration with:
+- NSIS installer (allows custom install location)
+- Desktop shortcut creation
+- Start Menu shortcut creation
+- License agreement
+- Proper versioning
+
+## 📋 Build Files Structure
+
+```
+desktop-app/
+├── build/                      # Build resources (icons, etc.)
+├── electron/
+│   └── main.cjs               # Electron main process (FIXED)
+├── src/                       # React source code
+├── dist/                      # Built React app (after npm run build)
+├── dist-electron/             # Final installer location
+│   └── Shinde Tractors Attendance Setup 1.0.0.exe
+├── LICENSE.txt                # App license
+├── BUILD_INSTRUCTIONS.md      # Detailed build guide
+├── build-installer.ps1        # Automated build script
+└── package.json              # Updated with build config
+```
+
+## 🔧 Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build React app for production
+- `npm run build:win` - Create Windows installer
+- `npm run preview` - Preview production build
+
+## 📝 Installation Process
+
+When users run the installer:
+
+1. Welcome screen with app information
+2. License agreement
+3. Choose installation directory
+4. Installation progress
+5. Desktop & Start Menu shortcuts created
+6. Launch application option
+
+## 🎨 Customization
+
+### Adding an Icon
+
+1. Create or obtain a 256x256 PNG logo
+2. Convert to `.ico` format using:
+   - https://icoconvert.com/
+   - https://convertio.co/png-ico/
+3. Save as `build/icon.ico`
+4. Uncomment icon lines in:
+   - `package.json` (under "win" section)
+   - `electron/main.cjs` (icon line)
+
+### Changing App Name/Version
+
+Edit `package.json`:
+```json
+{
+  "name": "your-app-name",
+  "version": "1.0.0",
+  "build": {
+    "productName": "Your Display Name"
+  }
+}
+```
+
+## 📤 Distribution
+
+The generated `.exe` installer can be:
+- Shared via email
+- Hosted on a website
+- Distributed via USB drives
+- Deployed via network shares
+
+**File size**: Approximately 80-120 MB (includes Node.js and Chromium)
+
+## 🔐 Security Notes
+
+- The app requires Supabase credentials
+- Credentials can be:
+  - Bundled in the app (during build)
+  - Stored in user's environment variables
+  - Loaded from external config file
+
+## 🐛 Troubleshooting
+
+### DevTools Still Opening
+- Ensure you're running the built app, not dev mode
+- Check that `NODE_ENV` is not set to 'development'
+
+### Build Errors
+```bash
+# Clean install
+rm -rf node_modules package-lock.json
+npm install
+npm run build:win
+```
+
+### App Won't Start After Install
+- Check if `.env` file is in installation directory
+- Verify Supabase credentials are correct
+
+## 📚 Documentation
+
+- [Electron Documentation](https://www.electronjs.org/docs/latest/)
+- [Electron Builder](https://www.electron.build/)
+- [Detailed Build Instructions](./BUILD_INSTRUCTIONS.md)
+
+## ✅ Changelog
+
+### Version 1.0.0
+- ✅ Fixed DevTools opening in production
+- ✅ Added proper NSIS installer configuration
+- ✅ Created automated build script
+- ✅ Added desktop and start menu shortcuts
+- ✅ Included license agreement
+- ✅ Full documentation
+
+## 🤝 Support
+
+For issues or questions:
+1. Check [BUILD_INSTRUCTIONS.md](./BUILD_INSTRUCTIONS.md)
+2. Review error logs in `dist-electron/builder-debug.yml`
+3. Check Electron Builder documentation
 
 ## Features
 

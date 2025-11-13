@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { format, getDaysInMonth, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Calendar as CalendarIcon, Save } from 'lucide-react';
-import { workingDaysService, auditService } from '../services/api';
+import { Calendar as CalendarIcon, Save, RefreshCw } from 'lucide-react';
+import { useWorkingDays, useSetWorkingDays } from '../hooks/useWorkingDays';
 import { useAuthStore } from '../store';
 
 const DEPARTMENTS = ['Salesman', 'Mechanic', 'Housekeeping', 'Management'];
@@ -11,8 +11,6 @@ export default function WorkingDays() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [selectedDepartment, setSelectedDepartment] = useState('Salesman');
   const [workingDates, setWorkingDates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const { user } = useAuthStore();
 
   const [year, month] = selectedMonth.split('-').map(Number);
@@ -21,25 +19,23 @@ export default function WorkingDays() {
   const monthEnd = endOfMonth(new Date(year, month - 1));
   const allDatesInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  useEffect(() => {
-    loadWorkingDays();
-  }, [selectedMonth, selectedDepartment]);
+  // Use React Query hooks for caching
+  const { data: workingDaysData, isLoading: loading, refetch, isFetching } = useWorkingDays(month, year, selectedDepartment);
+  const setWorkingDaysMutation = useSetWorkingDays();
 
-  const loadWorkingDays = async () => {
-    setLoading(true);
-    try {
-      const data = await workingDaysService.getWorkingDays(month, year, selectedDepartment);
-      if (data && data.working_dates) {
-        setWorkingDates(data.working_dates.map(d => format(new Date(d), 'yyyy-MM-dd')));
-      } else {
-        setWorkingDates([]);
-      }
-    } catch (error) {
-      console.error('Load error:', error);
+  // Update local state when data is loaded
+  useEffect(() => {
+    if (workingDaysData && workingDaysData.working_dates) {
+      setWorkingDates(workingDaysData.working_dates.map(d => format(new Date(d), 'yyyy-MM-dd')));
+    } else {
       setWorkingDates([]);
-    } finally {
-      setLoading(false);
     }
+  }, [workingDaysData]);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    await refetch();
+    toast.success('Data refreshed');
   };
 
   const toggleDate = (date) => {
@@ -76,35 +72,17 @@ export default function WorkingDays() {
       return;
     }
 
-    setSaving(true);
-    try {
-      const workingDaysData = {
-        month,
-        year,
-        department: selectedDepartment,
-        total_working_days: workingDates.length,
-        working_dates: workingDates,
-        created_by: user?.id,
-        updated_by: user?.id
-      };
+    const workingDaysDataToSave = {
+      month,
+      year,
+      department: selectedDepartment,
+      total_working_days: workingDates.length,
+      working_dates: workingDates,
+      created_by: user?.id,
+      updated_by: user?.id
+    };
 
-      await workingDaysService.setWorkingDays(workingDaysData);
-
-      await auditService.logAction(
-        'SET_WORKING_DAYS',
-        'working_days',
-        null,
-        null,
-        { month, year, department: selectedDepartment, count: workingDates.length }
-      );
-
-      toast.success('Working days saved successfully');
-    } catch (error) {
-      toast.error('Failed to save working days');
-      console.error('Save error:', error);
-    } finally {
-      setSaving(false);
-    }
+    await setWorkingDaysMutation.mutateAsync(workingDaysDataToSave);
   };
 
   const getDayName = (date) => {
@@ -122,9 +100,20 @@ export default function WorkingDays() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Working Days Configuration</h1>
-        <p className="text-gray-600 mt-1">Set working days for salary calculation</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Working Days Configuration</h1>
+          <p className="text-gray-600 mt-1">Set working days for salary calculation</p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isFetching}
+          className="btn-secondary flex items-center gap-2"
+          title="Refresh data from database"
+        >
+          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+          {isFetching ? 'Refreshing...' : 'Refresh'}
+        </button>
       </div>
 
       {/* Controls */}
@@ -170,11 +159,11 @@ export default function WorkingDays() {
           <div className="flex-1"></div>
           <button
             onClick={handleSave}
-            disabled={saving || workingDates.length === 0}
+            disabled={setWorkingDaysMutation.isPending || workingDates.length === 0}
             className="btn-primary flex items-center gap-2"
           >
             <Save className="w-5 h-5" />
-            {saving ? 'Saving...' : 'Save Working Days'}
+            {setWorkingDaysMutation.isPending ? 'Saving...' : 'Save Working Days'}
           </button>
         </div>
       </div>

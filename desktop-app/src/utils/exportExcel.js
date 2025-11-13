@@ -140,8 +140,12 @@ export const exportSalaryReport = async (salaryData, month, year) => {
     'Working Days',
     'Days Present',
     'Unpaid Absences',
+    'Sundays Worked',
+    'Sunday Compensation',
+    'Sunday Overtime',
     'Per Day Rate',
     'Deduction',
+    'Overtime Pay',
     'Payable Salary'
   ]);
 
@@ -163,13 +167,17 @@ export const exportSalaryReport = async (salaryData, month, year) => {
       record.total_working_days,
       record.days_present,
       record.days_absent_unpaid,
+      record.sundays_worked || 0,
+      record.sunday_compensation_days || 0,
+      record.sunday_overtime_days || 0,
       record.per_day_rate,
       record.deduction_amount,
+      record.overtime_amount || 0,
       record.payable_salary
     ]);
 
-    // Format currency cells
-    [4, 8, 9, 10].forEach(colNum => {
+    // Format currency cells (A=1, B=2, ... M=13, N=14)
+    [4, 11, 12, 13, 14].forEach(colNum => {
       const cell = row.getCell(colNum);
       cell.numFmt = '₹#,##0.00';
     });
@@ -183,9 +191,13 @@ export const exportSalaryReport = async (salaryData, month, year) => {
     '',
     { formula: `SUM(F3:F${worksheet.rowCount - 1})` },
     { formula: `SUM(G3:G${worksheet.rowCount - 1})` },
-    '',
+    { formula: `SUM(H3:H${worksheet.rowCount - 1})` },
     { formula: `SUM(I3:I${worksheet.rowCount - 1})` },
-    { formula: `SUM(J3:J${worksheet.rowCount - 1})` }
+    { formula: `SUM(J3:J${worksheet.rowCount - 1})` },
+    '',
+    { formula: `SUM(L3:L${worksheet.rowCount - 1})` },
+    { formula: `SUM(M3:M${worksheet.rowCount - 1})` },
+    { formula: `SUM(N3:N${worksheet.rowCount - 1})` }
   ]);
   
   summaryRow.font = { bold: true };
@@ -197,7 +209,7 @@ export const exportSalaryReport = async (salaryData, month, year) => {
 
   // Auto-fit columns
   worksheet.columns.forEach(column => {
-    column.width = 18;
+    column.width = 16;
   });
 
   const buffer = await workbook.xlsx.writeBuffer();

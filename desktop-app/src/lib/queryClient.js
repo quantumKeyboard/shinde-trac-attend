@@ -11,11 +11,11 @@ export const queryClient = new QueryClient({
       // Retry failed requests twice
       retry: 2,
       // Refetch on window focus for fresh data
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       // Refetch on reconnect
       refetchOnReconnect: true,
-      // Show cached data while revalidating
-      refetchOnMount: false,
+      // Refetch when component mounts if data is stale
+      refetchOnMount: true,
     },
     mutations: {
       // Retry failed mutations once

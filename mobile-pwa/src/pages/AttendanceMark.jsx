@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Check, X, Calendar as CalendarIcon, Save, Users as UsersIcon } from 'lucide-react';
+import { Check, X, Calendar as CalendarIcon, Save, Users as UsersIcon, MessageSquare, Send } from 'lucide-react';
 import { employeeService, attendanceService, auditService } from '../services/api';
 import { useAuthStore } from '../store';
 
@@ -14,6 +14,8 @@ export default function AttendanceMark() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState('All');
+  const [customMessage, setCustomMessage] = useState('');
+  const [showMessageBox, setShowMessageBox] = useState(false);
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -118,6 +120,40 @@ export default function AttendanceMark() {
     
     setAttendance(updatedAttendance);
     toast.success(`${selectedDepartment} marked present`);
+  };
+
+  const handleShareMessage = async () => {
+    if (!customMessage.trim()) {
+      toast.error('Please enter a message to share');
+      return;
+    }
+
+    // Check if Web Share API is supported
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: customMessage
+        });
+        toast.success('Message shared successfully');
+        // Optionally clear the message after sharing
+        // setCustomMessage('');
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          // User cancelled the share, don't show error
+          console.error('Error sharing:', error);
+          toast.error('Failed to share message');
+        }
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(customMessage);
+        toast.success('Message copied to clipboard! You can now paste it in WhatsApp');
+      } catch (error) {
+        toast.error('Failed to copy message');
+        console.error('Clipboard error:', error);
+      }
+    }
   };
 
   const validateAttendance = () => {
@@ -350,6 +386,44 @@ export default function AttendanceMark() {
             </div>
           );
         })}
+      </div>
+
+      {/* Custom Message Share Section */}
+      <div className="mt-6 mb-4">
+        <button
+          onClick={() => setShowMessageBox(!showMessageBox)}
+          className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors touch-target"
+        >
+          <MessageSquare className="w-5 h-5" />
+          {showMessageBox ? 'Hide Message Box' : 'Share Custom Message'}
+        </button>
+
+        {showMessageBox && (
+          <div className="mt-4 bg-white rounded-lg shadow-md p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <MessageSquare className="inline w-4 h-4 mr-1" />
+              Type your message
+            </label>
+            <textarea
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              placeholder="Type your custom message here..."
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 resize-none"
+            />
+            <p className="text-xs text-gray-500 mt-2 mb-3">
+              Click send to share via WhatsApp or other messaging apps
+            </p>
+            <button
+              onClick={handleShareMessage}
+              disabled={!customMessage.trim()}
+              className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-target"
+            >
+              <Send className="w-5 h-5" />
+              Send Message
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Save Button */}

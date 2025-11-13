@@ -1,0 +1,8 @@
+Shinde Tractors Employee Attendance System
+Copyright (c) 2025 Shinde Tractors
+
+All rights reserved.
+
+This software is proprietary and confidential. Unauthorized copying, 
+transferring or reproduction of the contents of this software, via any 
+medium is strictly prohibited.

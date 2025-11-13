@@ -299,33 +299,58 @@ export const salaryService = {
       endDate
     );
 
-    // Calculate attendance statistics
-    const totalWorkingDays = workingDaysData.total_working_days;
-    const daysPresent = attendanceRecords.filter(a => a.is_present && !a.is_sunday_work).length;
-    const daysAbsentUnpaid = attendanceRecords.filter(
-      a => !a.is_present && !a.is_paid_leave
-    ).length;
-    const daysAbsentPaid = attendanceRecords.filter(
-      a => !a.is_present && a.is_paid_leave
-    ).length;
+    // Helper function to check if a date is Sunday
+    const isSundayDate = (dateStr) => {
+      const date = new Date(dateStr + 'T00:00:00'); // Add time to avoid timezone issues
+      return date.getDay() === 0;
+    };
+
+    // Count total Sundays in the month (from working_dates array)
+    const allDatesInMonth = workingDaysData.working_dates || [];
+    const totalSundaysInMonth = allDatesInMonth.filter(dateStr => isSundayDate(dateStr)).length;
+
+    // Count Sundays worked (only those with attendance records marked as present)
+    const sundaysWorked = attendanceRecords.filter(a => {
+      return a.is_present && isSundayDate(a.attendance_date);
+    }).length;
     
-    // Calculate Sunday work (compensation and overtime)
-    const sundayWorkDays = attendanceRecords.filter(
-      a => a.is_present && a.is_sunday_work
-    ).length;
+    // Sundays absent = Total Sundays - Sundays Worked (no attendance record means they didn't work, which is fine)
+    const sundaysAbsent = totalSundaysInMonth - sundaysWorked;
+
+    // Calculate attendance statistics (excluding Sundays from normal calculation)
+    const totalWorkingDays = workingDaysData.total_working_days;
+    
+    // Calculate total days in the month for per-day rate
+    const daysInMonth = new Date(year, month, 0).getDate(); // Gets actual days in month (28-31)
+    
+    // Count normal working days (non-Sunday) present
+    const regularDaysPresent = attendanceRecords.filter(a => {
+      return a.is_present && !isSundayDate(a.attendance_date);
+    }).length;
+    
+    // Count absences on regular days (not Sundays) - unpaid only
+    const regularDaysAbsentUnpaid = attendanceRecords.filter(a => {
+      // Only count as absent if it's NOT a Sunday and it's unpaid
+      return !a.is_present && !a.is_paid_leave && !isSundayDate(a.attendance_date);
+    }).length;
+    
+    // Count paid leaves (excluding Sundays)
+    const daysAbsentPaid = attendanceRecords.filter(a => {
+      return !a.is_present && a.is_paid_leave && !isSundayDate(a.attendance_date);
+    }).length;
     
     // Sunday Compensation Logic:
-    // 1. First, use Sunday days to compensate unpaid absences (1 Sunday = 1 Absence)
-    // 2. Remaining Sunday days count as overtime (paid at regular rate)
-    const sundayCompensationDays = Math.min(sundayWorkDays, daysAbsentUnpaid);
-    const sundayOvertimeDays = sundayWorkDays - sundayCompensationDays;
+    // 1. First, use Sunday work to compensate unpaid absences on regular days (1 Sunday = 1 Absence)
+    // 2. Remaining Sunday work counts as overtime (paid extra)
+    const sundayCompensationDays = Math.min(sundaysWorked, regularDaysAbsentUnpaid);
+    const sundayOvertimeDays = sundaysWorked - sundayCompensationDays;
     
     // Adjust actual unpaid absences after Sunday compensation
-    const actualUnpaidAbsences = daysAbsentUnpaid - sundayCompensationDays;
+    const actualUnpaidAbsences = regularDaysAbsentUnpaid - sundayCompensationDays;
 
-    // Calculate salary
+    // Calculate salary - Per day rate is monthly salary divided by days in month (not working days)
     const monthlySalary = parseFloat(employee.monthly_salary);
-    const perDayRate = monthlySalary / totalWorkingDays;
+    const perDayRate = monthlySalary / daysInMonth; // Simplified: Use actual days in month
     const deductionAmount = perDayRate * actualUnpaidAbsences; // Deduct only after compensation
     const overtimeAmount = perDayRate * sundayOvertimeDays; // Pay for overtime Sundays
     const payableSalary = monthlySalary - deductionAmount + overtimeAmount;
@@ -336,11 +361,14 @@ export const salaryService = {
       year,
       monthly_salary: monthlySalary,
       total_working_days: totalWorkingDays,
-      days_present: daysPresent,
-      days_absent_unpaid: daysAbsentUnpaid, // Original unpaid count
+      days_present: regularDaysPresent, // Regular days present
+      days_absent_unpaid: regularDaysAbsentUnpaid, // Original unpaid count (before compensation)
       days_absent_paid: daysAbsentPaid,
-      sunday_compensation_days: sundayCompensationDays,
-      sunday_overtime_days: sundayOvertimeDays,
+      sundays_in_month: totalSundaysInMonth, // Total Sundays in the month
+      sundays_absent: sundaysAbsent, // Sundays absent (no penalty - paid holiday)
+      sundays_worked: sundaysWorked, // Sundays worked
+      sunday_compensation_days: sundayCompensationDays, // Sundays used to compensate absences
+      sunday_overtime_days: sundayOvertimeDays, // Sundays paid as overtime
       per_day_rate: perDayRate,
       deduction_amount: deductionAmount,
       overtime_amount: overtimeAmount,
@@ -379,7 +407,8 @@ export const salaryService = {
       .from('salary_calculations')
       .select(`
         *,
-        employees (
+        employees!inner (
+          id,
           employee_id,
           full_name,
           department

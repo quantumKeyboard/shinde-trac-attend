@@ -86,6 +86,9 @@ CREATE TABLE salary_calculations (
     days_present INTEGER NOT NULL,
     days_absent_unpaid INTEGER NOT NULL,
     days_absent_paid INTEGER NOT NULL,
+    sundays_in_month INTEGER NOT NULL DEFAULT 0, -- Total Sundays in the working month
+    sundays_worked INTEGER NOT NULL DEFAULT 0, -- Number of Sundays employee worked
+    sundays_absent INTEGER NOT NULL DEFAULT 0, -- Number of Sundays employee was absent (paid holiday)
     sunday_compensation_days INTEGER DEFAULT 0, -- Sundays worked to compensate absences
     sunday_overtime_days INTEGER DEFAULT 0, -- Sundays worked as overtime (no absences)
     per_day_rate DECIMAL(10, 2) NOT NULL,
